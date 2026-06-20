@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Revenue Analytics — Verification Dashboard</title>
+<style>
+  :root { --bg:#0f1117; --card:#1a1d27; --line:#2a2f3d; --txt:#e6e8ee; --mut:#9aa3b2; --acc:#5b9dff; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:14px/1.5 system-ui,Segoe UI,Roboto,sans-serif; }
+  header { padding:20px 28px; border-bottom:1px solid var(--line); }
+  h1 { margin:0; font-size:18px; } h1 span { color:var(--mut); font-weight:400; }
+  .wrap { padding:24px 28px; max-width:1200px; margin:0 auto; }
+  .filters { display:flex; gap:12px; flex-wrap:wrap; align-items:end; margin-bottom:20px; }
+  .filters label { display:flex; flex-direction:column; gap:4px; color:var(--mut); font-size:12px; }
+  input, select { background:var(--card); border:1px solid var(--line); color:var(--txt); padding:7px 9px; border-radius:6px; }
+  button { background:var(--acc); color:#08121f; border:0; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px; margin-bottom:24px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  .card .k { color:var(--mut); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  .card .v { font-size:22px; font-weight:700; margin-top:6px; }
+  table { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  th, td { padding:9px 12px; text-align:right; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums; }
+  th:first-child, td:first-child { text-align:left; }
+  th { color:var(--mut); font-weight:600; font-size:12px; text-transform:uppercase; position:sticky; top:0; background:var(--card); }
+  tbody tr:hover { background:#222633; }
+  .tbl-wrap { max-height:520px; overflow:auto; border-radius:10px; }
+  .muted { color:var(--mut); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Revenue Analytics <span>— ClickHouse-backed verification dashboard</span></h1>
+</header>
+<div class="wrap">
+  <div class="filters">
+    <label>Start date <input type="date" id="start" value="2026-01-01"></label>
+    <label>End date <input type="date" id="end" value="2026-01-31"></label>
+    <label>Currency
+      <select id="currency">
+        <option value="">All</option><option>USD</option><option>EUR</option><option>GBP</option>
+      </select>
+    </label>
+    <label>Plan
+      <select id="plan">
+        <option value="">All</option><option>basic</option><option>pro</option><option>enterprise</option>
+      </select>
+    </label>
+    <button onclick="load()">Apply</button>
+  </div>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="tbl-wrap">
+    <table id="daily">
+      <thead><tr>
+        <th>Date</th><th>Attempts</th><th>Succeeded</th><th>Success&nbsp;%</th>
+        <th>Gross USD</th><th>Refunds USD</th><th>Net USD</th><th>Refund&nbsp;%</th>
+        <th>Active subs</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <p class="muted" id="status"></p>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const money = n => '$' + Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const pct = n => (Number(n)*100).toFixed(1) + '%';
+
+function qs() {
+  const p = new URLSearchParams();
+  for (const k of ['start','end','currency','plan']) if ($(k).value) p.set(k, $(k).value);
+  return p.toString();
+}
+
+async function load() {
+  $('status').textContent = 'Loading…';
+  const q = qs();
+  const [sum, day] = await Promise.all([
+    fetch('/api/metrics/summary?'+q).then(r=>r.json()),
+    fetch('/api/metrics/daily?'+q).then(r=>r.json()),
+  ]);
+  const s = sum.summary;
+  $('cards').innerHTML = [
+    ['Gross revenue', money(s.gross_usd)],
+    ['Net revenue', money(s.net_usd)],
+    ['Refunds', money(s.refunds_usd)],
+    ['Payment success rate', pct(s.success_rate)],
+    ['Refund rate', pct(s.refund_rate)],
+    ['Active subs (end of range)', s.active_subscriptions_at_end],
+    ['Rejected records', s.rejected_records],
+  ].map(([k,v]) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+
+  const tb = $('daily').querySelector('tbody');
+  tb.innerHTML = day.results.map(r => `<tr>
+    <td>${r.date}</td><td>${r.attempts}</td><td>${r.succeeded}</td><td>${pct(r.success_rate)}</td>
+    <td>${money(r.gross_usd)}</td><td>${money(r.refunds_usd)}</td><td>${money(r.net_usd)}</td>
+    <td>${pct(r.refund_rate)}</td><td>${r.active_subscriptions}</td>
+  </tr>`).join('');
+  $('status').textContent = `${day.count} day(s) • filters: ${JSON.stringify(sum.filters)}`;
+}
+load();
+</script>
+</body>
+</html>

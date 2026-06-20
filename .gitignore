@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+.venv/
+venv/
+*.sqlite3
+.pytest_cache/
+.mypy_cache/
+*.parquet
+.DS_Store
+/data/_local/
+# Original dataset delivery artifacts (canonical copy lives in dataset/)
+dataset (1)/
+dataset (1).zip
+
+# Keep agent instructions out of the repo / PR
+CLAUDE.md
+.claude/

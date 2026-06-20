@@ -1,0 +1,7 @@
+# Normalise line endings. Shell scripts MUST stay LF or the Linux container breaks.
+* text=auto eol=lf
+*.sh text eol=lf
+Dockerfile text eol=lf
+Makefile text eol=lf
+*.png binary
+*.parquet binary
