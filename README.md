@@ -54,10 +54,9 @@ cp .env.example .env
 docker compose up -d --build
 docker compose exec web python manage.py migrate
 docker compose exec web python manage.py seed
-docker compose exec web python manage.py run_batch     # runs init_clickhouse + bootstrap_s3 internally via make; standalone needs them first:
-docker compose exec web python manage.py init_clickhouse
-docker compose exec web python manage.py bootstrap_s3
-docker compose exec web python manage.py run_batch
+docker compose exec web python manage.py init_clickhouse   # create CH tables + views
+docker compose exec web python manage.py bootstrap_s3      # create S3 bucket + stream
+docker compose exec web python manage.py run_batch         # the incremental batch
 docker compose run --rm web pytest -q
 ```
 
